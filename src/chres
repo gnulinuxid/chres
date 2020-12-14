@@ -1,0 +1,123 @@
+#!/usr/bin/env sh
+# chres - Resolution Changer with xrandr.
+#
+# Copyright (c) 2020 nggit.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+SCALING_MODE="Center"
+
+if ! command -v xrandr > /dev/null; then
+    echo "xrandr tidak ditemukan!"
+    exit 1
+fi
+
+cvt=$( command -v cvt || command -v gtf )
+if [ ! -x "$cvt" ]; then
+    echo "cvt atau gtf tidak ditemukan!"
+    exit 1
+fi
+
+IFS=' '
+user1=
+user2=
+user3=
+i=0
+
+for user in $( echo "$@" | sed 's/x/ /i; s/p//gi' ); do
+    i=$(( i + 1 ))
+    eval "user$i=$user"
+done
+
+case $1 in
+    [0-9]*[0-9][pP]) width=; height=$user1; rate=$user2;;
+    [0-9]*[0-9][xX][0-9]*[0-9]|[0-9]*[0-9]) width=$user1; height=$user2; rate=$user3;;
+    -h|--help) cat <<EOL
+chres - https://github.com/gnulinuxid/chres
+
+Penggunaan:
+  chres [opsi] <RATE>
+
+Opsi:
+  <WIDTH>[x ]<HEIGHT>     contoh: chres 1366x768, chres 1366 768
+  <HEIGHT>p               contoh: chres 720p
+  -h, --help              untuk melihat bantuan ini
+
+Jika menggunakan <HEIGHT>p, ukuran lebar akan ditentukan berdasarkan rasio native layar.
+EOL
+exit;;
+    *) echo 'Gunakan opsi "-h" atau "--help" untuk bantuan.'; exit;;
+esac
+
+IFS='
+'
+str_choices=
+str_cmd=
+i=0
+n=0
+
+for mon in $( xrandr | grep -o '.* connected' ); do
+    i=$(( i + 1 ))
+    str_choices="$str_choices $i ) ${mon% *}
+"
+    str_cmd="$str_cmd $i) n=$i; mon=\"${mon% *}\";;"
+done
+
+if [ $i -gt 1 ]; then
+    printf '%s\n%s' "Silahkan pilih output ( 1 - $i ):" "$str_choices"
+    str_cmd="read -r selected; case \$selected in$str_cmd *) echo \"Anda tidak memilih 1 - \$i\"; exit;; esac"
+    eval "$str_cmd"
+else
+    n=$i
+    mon=${mon% *}
+fi
+
+IFS="$IFS "
+i=0
+
+for native in $( xrandr | grep '+$' | sed 's/[^0-9_.]/ /g' ); do
+    i=$(( i + 1 ))
+    eval "native$i=${native%_*}"
+done
+
+nr=$(( n * 3 ))
+nh=$(( nr - 1 ))
+nw=$(( nh - 1 ))
+
+eval "\
+native_w=\$native$nw
+native_h=\$native$nh
+native_h=\${native_h%_*}
+native_r=\$native$nr\
+"
+
+width=${width:-$(( height * native_w / native_h ))}
+height=${height:-$native_h}
+rate=${rate:-$native_r}
+
+if [ "$width" = "$native_w" ] && [ "$height" = "$native_h" ] && [ "$rate" = "$native_r" ]; then
+    res=${width}x$height
+else
+    modeline=$( $cvt "$width" "$height" "$rate" | grep Modeline )
+    modeline=\"${modeline#*\"}
+    res=${modeline%\"*}
+    res=${res#*\"}
+fi
+
+if xrandr --output "$mon" --auto --mode "$res" > /dev/null 2>&1; then
+    echo "$res"
+    exit
+fi
+
+eval "\
+xrandr --newmode $modeline
+xrandr --addmode $mon $res
+xrandr --output $mon --set \"scaling mode\" $SCALING_MODE\
+"
+
+if xrandr --output "$mon" --auto --mode "$res"; then
+    echo "Mode baru \"$res\" diterapkan."
+fi
