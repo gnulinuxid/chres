@@ -1,0 +1,34 @@
+#!/bin/sh
+# setup - chres 1.0 Installer.
+#
+# Copyright (c) 2020 nggit.
+#
+prog=chres
+IFS=:
+
+for p in $PATH; do
+    i=$(( i + 1 ))
+    str_cmd="$str_cmd $i) install $prog \$( echo \$PATH | cut -d' ' -f$i );;"
+    str_choices="$str_choices $i )	$p	$( [ -w "$p" ] && echo "( disarankan )" )
+"
+    if [ -f "$p/$prog" ]; then
+        echo "$prog sudah terpasang di $p. Hapus? ( 1 = Ya, Enter = Tidak )"
+        read -r n
+        [ "${n:-0}" = 1 ] && rm "$p/$prog"
+        exit
+    fi
+done
+
+cat <<EOL
+         __                     
+  _____ / /_   _____ ___   _____
+ / ___// __ \ / ___// _ \ / ___/
+/ /__ / / / // /   /  __/(__  ) 
+\___//_/ /_//_/    \___//____/  
+                                
+EOL
+
+printf '%s\n%s' "Mau dipasang dimana? ( Silahkan pilih 1 - $i )" "$str_choices"
+read -r n
+str_cmd="case \$n in$str_cmd *) echo 'Silahkan pilih 1 - $i';; esac"
+eval "$str_cmd"
