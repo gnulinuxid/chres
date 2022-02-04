@@ -1,23 +1,19 @@
 #!/usr/bin/env sh
+# SPDX-License-Identifier: GPL-2.0-or-later
 # chres - Resolution Changer with xrandr.
-#
+# https://github.com/gnulinuxid/chres
 # Copyright (c) 2020 nggit.
-#
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of the License, or
-# (at your option) any later version.
-#
+
 SCALING_MODE="Center"
 
 if ! command -v xrandr > /dev/null; then
-    echo "xrandr tidak ditemukan!"
+    echo "xrandr tidak ditemukan!" 1>&2
     exit 1
 fi
 
 cvt=$( command -v cvt || command -v gtf )
 if [ ! -x "$cvt" ]; then
-    echo "cvt atau gtf tidak ditemukan!"
+    echo "cvt atau gtf tidak ditemukan!" 1>&2
     exit 1
 fi
 
